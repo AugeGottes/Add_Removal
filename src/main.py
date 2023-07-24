@@ -5,10 +5,54 @@ import pickle
 from pydub import AudioSegment
 from headers import get_mfcc
 import numpy as np
+import cv2
 
-def delete(folder_path,section_to_delete):
+def delete(folder_path,sections_to_delete):
+    '''
+    Enter segments and delete them lol
+    '''
     input_folder_path=folder_path[:-4]+".mp4"
+    print("in delete")
     print(input_folder_path)
+    print(sections_to_delete)
+
+    input_file=input_folder_path
+    output_file = 'output.mp4'
+
+    cap = cv2.VideoCapture(input_file)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    
+    frame_numbers_to_delete = []
+    for start, end in sections_to_delete:
+        start_frame = int(start * fps)
+        end_frame = int(end * fps)
+        frame_numbers_to_delete.extend(list(range(start_frame, end_frame + 1)))
+
+    
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
+
+    # Process each frame of the input video
+    frame_number = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+      
+        if frame_number not in frame_numbers_to_delete:
+            out.write(frame)
+
+        frame_number += 1
+
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
+
     
 def merge(intervals):
     '''
@@ -62,6 +106,10 @@ def get_delete_intervals_sliding(non_ad_predictions,largest_segment,segment_dura
                          (segment_duration*segment_number-(segment_number-1)*(segment_duration-window_size)))
                          for segment_number in non_ad_predictions]
     print(sections_to_delete)
+    final_sections_to_delete=merge(sections_to_delete)
+    print(folder_path)
+    print(final_sections_to_delete)
+    delete(folder_path,final_sections_to_delete)
 
 def predict(audio_file_path,segment_duration,total_duration_sec,input_file_path,window_size):
     '''
@@ -116,7 +164,7 @@ def predict(audio_file_path,segment_duration,total_duration_sec,input_file_path,
     # get_delete_Intervals(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,input_file_path)
 
     #for the slide
-    get_delete_intervals_sliding(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,window_size,folder_path)
+    get_delete_intervals_sliding(ad_predictions,largest_segment,segment_duration,total_duration_sec,window_size,input_file_path)
 
 def get_total_length(input_file_path):
     '''
@@ -224,7 +272,7 @@ def main():
     convert_to_mp3(file_input+".mp4",file_input+".mp3")
     print(file_input)
     # split(file_input+".mp3",20)#this can be user input
-    sliding_window(file_input+".mp3", 10, 9)
+    sliding_window(file_input+".mp3", 10, 10)
 
 if __name__=="__main__":
     main()
