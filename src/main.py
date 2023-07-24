@@ -6,7 +6,6 @@ from pydub import AudioSegment
 from headers import get_mfcc
 import numpy as np
 
-
 def delete(folder_path,section_to_delete):
     input_folder_path=folder_path[:-4]+".mp4"
     print(input_folder_path)
@@ -55,11 +54,22 @@ def get_delete_Intervals(non_ad_predictions,largest_segment,segment_duration,tot
     print(folder_path)
     delete(folder_path,final_sections_to_delete)
 
-def predict(audio_file_path,segment_duration,total_duration_sec,input_file_path):
+def get_delete_intervals_sliding(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,window_size,folder_path):
+    '''
+    get the Intervals to be deleted if we use sliding window
+    '''
+    sections_to_delete=[(segment_number*segment_duration-segment_duration-((segment_number-1)*(segment_duration-window_size)),
+                         (segment_duration*segment_number-(segment_number-1)*(segment_duration-window_size)))
+                         for segment_number in non_ad_predictions]
+    print(sections_to_delete)
+
+def predict(audio_file_path,segment_duration,total_duration_sec,input_file_path,window_size):
     '''
     Predicts the label of the segments and stores them in a array also store the largest
     '''
-    folder_path = '/home/debanjan/Desktop/Code/ML/CDSAML/src/segments/'  # Replace with the actual folder path containing the .mp3 files
+    print("in predict")
+
+    folder_path='/home/debanjan/Desktop/Code/ML/CDSAML/Code/src/segments/'
 
     with open('svm_pickle', 'rb') as f:
         model = pickle.load(f)
@@ -101,7 +111,12 @@ def predict(audio_file_path,segment_duration,total_duration_sec,input_file_path)
 
     largest_segment=np.max(np.concatenate([ad_predictions,non_ad_predictions]))
     print(largest_segment)
-    get_delete_Intervals(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,input_file_path)
+    
+    # for the non slide
+    # get_delete_Intervals(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,input_file_path)
+
+    #for the slide
+    get_delete_intervals_sliding(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,window_size,folder_path)
 
 def get_total_length(input_file_path):
     '''
@@ -112,10 +127,49 @@ def get_total_length(input_file_path):
     total_duration_sec = total_duration_ms / 1000
     return total_duration_sec
 
+
+def sliding_window(input_file_path, segment_duration, window_duration):
+    '''
+    Split file into segments using sliding window
+    '''
+    total_duration_sec = get_total_length(input_file_path)
+
+    audio = AudioSegment.from_mp3(input_file_path)
+    duration = len(audio)
+    segment_duration_ms = segment_duration * 1000
+    window_duration_ms = window_duration * 1000
+
+    segments = []
+    start_time = 0
+
+    while start_time + segment_duration_ms <= duration:
+        end_time = start_time + segment_duration_ms
+        segment = audio[start_time:end_time]
+        segments.append(segment)
+        start_time += window_duration_ms
+
+    output_directory = "segments"
+    os.makedirs(output_directory, exist_ok=True)
+
+    for i, segment in enumerate(segments, start=1):
+        output_file_path = os.path.join(output_directory, f"{i}.mp3")
+        segment.export(output_file_path, format="mp3")
+
+    sorted_files = sorted(os.listdir(output_directory), key=lambda f: int(os.path.splitext(f)[0]))
+
+    print("Segmented files sorted by time:")
+    for file_name in sorted_files:
+        print(file_name)
+
+    # no clue why I am segments
+    predict(segments, segment_duration, total_duration_sec, input_file_path,window_duration)
+
 def split(input_file_path, segment_duration):
     '''
     Split file into segments
     '''
+    print(input_file_path)
+    print("in split")
     total_duration_sec=get_total_length(input_file_path)
 
     audio = AudioSegment.from_mp3(input_file_path)
@@ -169,8 +223,8 @@ def main():
     file_input=input("Enter your choice\n")
     convert_to_mp3(file_input+".mp4",file_input+".mp3")
     print(file_input)
-    split(file_input+".mp3",20)#this can be user input
-
+    # split(file_input+".mp3",20)#this can be user input
+    sliding_window(file_input+".mp3", 10, 9)
 
 if __name__=="__main__":
     main()
