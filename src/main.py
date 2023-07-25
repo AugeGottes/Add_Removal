@@ -7,51 +7,78 @@ from headers import get_mfcc
 import numpy as np
 import cv2
 
+
 def delete(folder_path,sections_to_delete):
     '''
-    Enter segments and delete them lol
+    The segments are saved and not deleted
     '''
-    input_folder_path=folder_path[:-4]+".mp4"
-    print("in delete")
-    print(input_folder_path)
+    # os.system()
+    print(folder_path)
     print(sections_to_delete)
+    fname=folder_path[:-4]+".mp4"
+    print("in delete")
+    print(fname)
+    timestamps=sections_to_delete
+    i = 0
+    tsp_str = "\'"
+    for timestamp in timestamps:
+        tsp = "between(t,"+str(timestamp[0])+','+str(timestamp[1])+")"
+        if i == 0:
+            tsp_str = tsp_str + tsp
+        else:
+            tsp_str = tsp_str + '+' + tsp
+        i = i + 1
+    tsp_str = tsp_str +"\'"
+    print(tsp_str)
+    command = f'ffmpeg -i {fname} -vf "select={tsp_str}, setpts=N/FRAME_RATE/TB" -af "aselect={tsp_str}, asetpts=N/SR/TB" out.mp4'
+    print(command)
+    op = os.system(command)
 
-    input_file=input_folder_path
-    output_file = 'output.mp4'
+# def delete(folder_path,sections_to_delete):
+#     '''
+#     Enter segments and delete them lol
+#     '''
+#     input_folder_path=folder_path[:-4]+".mp4"
+#     print("in delete")
+#     print(input_folder_path)
+#     print(sections_to_delete)
 
-    cap = cv2.VideoCapture(input_file)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#     input_file=input_folder_path
+#     output_file = 'output.mp4'
+
+#     cap = cv2.VideoCapture(input_file)
+#     fps = cap.get(cv2.CAP_PROP_FPS)
+#     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+#     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     
-    frame_numbers_to_delete = []
-    for start, end in sections_to_delete:
-        start_frame = int(start * fps)
-        end_frame = int(end * fps)
-        frame_numbers_to_delete.extend(list(range(start_frame, end_frame + 1)))
+#     frame_numbers_to_delete = []
+#     for start, end in sections_to_delete:
+#         start_frame = int(start * fps)
+#         end_frame = int(end * fps)
+#         frame_numbers_to_delete.extend(list(range(start_frame, end_frame + 1)))
 
     
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
+#     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+#     out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
 
-    # Process each frame of the input video
-    frame_number = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+#     # Process each frame of the input video
+#     frame_number = 0
+#     while True:
+#         ret, frame = cap.read()
+#         if not ret:
+#             break
 
       
-        if frame_number not in frame_numbers_to_delete:
-            out.write(frame)
+#         if frame_number not in frame_numbers_to_delete:
+#             out.write(frame)
 
-        frame_number += 1
+#         frame_number += 1
 
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
+#     cap.release()
+#     out.release()
+#     cv2.destroyAllWindows()
 
     
 def merge(intervals):
@@ -164,7 +191,7 @@ def predict(audio_file_path,segment_duration,total_duration_sec,input_file_path,
     # get_delete_Intervals(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,input_file_path)
 
     #for the slide
-    get_delete_intervals_sliding(ad_predictions,largest_segment,segment_duration,total_duration_sec,window_size,input_file_path)
+    get_delete_intervals_sliding(non_ad_predictions,largest_segment,segment_duration,total_duration_sec,window_size,input_file_path)
 
 def get_total_length(input_file_path):
     '''
@@ -216,6 +243,8 @@ def split(input_file_path, segment_duration):
     '''
     Split file into segments
     '''
+    
+
     print(input_file_path)
     print("in split")
     total_duration_sec=get_total_length(input_file_path)
@@ -266,13 +295,15 @@ def convert_to_mp3(input_path,output_path):
 
 
 def main():
+    os.system("rm -r /home/debanjan/Desktop/Code/ML/CDSAML/Code/src/segments/")
+    # os.system("rm -r /home/debanjan/Desktop/Code/ML/CDSAML/Code/src/out.mp4")
     print("Enter the file you want to be ad freed from the list of files")
     display(".")
     file_input=input("Enter your choice\n")
     convert_to_mp3(file_input+".mp4",file_input+".mp3")
     print(file_input)
     # split(file_input+".mp3",20)#this can be user input
-    sliding_window(file_input+".mp3", 10, 10)
+    sliding_window(file_input+".mp3", 15, 15)
 
 if __name__=="__main__":
     main()
